@@ -1,4 +1,14 @@
-__pycache__/
+# virtual environment
+.venv/
 venv/
+
+# python cache
+__pycache__/
+*.pyc
+
+# environment variables
 .env
-bank.db
+
+# OS files
+.DS_Store
+Thumbs.db
