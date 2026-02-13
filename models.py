@@ -22,3 +22,5 @@ class Transaction(Base):
     status = Column(String)  # SUCCESS / FAILED
     reference_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+
