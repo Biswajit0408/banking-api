@@ -22,5 +22,11 @@ class Transaction(Base):
     status = Column(String)  # SUCCESS / FAILED
     reference_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class IdempotencyKey(Base):
+    __tablename__ = "idempotency_keys"
+
+    key = Column(String, primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
 

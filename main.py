@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Header
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi import Query
 from database import Base, engine, SessionLocal
-from models import Account
 from models import Account, Transaction
+from models import IdempotencyKey
 from schemas import (
     AccountCreate,
     AccountResponse,
@@ -143,72 +143,24 @@ def withdraw(
 
     return account
 
+from services.account_service import transfer_money
+
 @app.post("/transfer")
 def transfer(
     from_account_id: str,
     to_account_id: str,
     amount: float,
+    idempotency_key: str = Header(..., alias="Idempotency-Key"),
     db: Session = Depends(get_db)
 ):
-    if amount <= 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Transfer amount must be positive"
-        )
+    return transfer_money(
+        db,
+        from_account_id,
+        to_account_id,
+        amount,
+        idempotency_key
+    )
 
-    sender = db.query(Account).filter(Account.id == from_account_id).first()
-    receiver = db.query(Account).filter(Account.id == to_account_id).first()
-
-    if not sender or not receiver:
-        raise HTTPException(
-            status_code=404,
-            detail="Invalid sender or receiver account"
-        )
-
-    if sender.balance < amount:
-        raise HTTPException(
-            status_code=400,
-            detail="Insufficient balance"
-        )
-
-    try:
-        # 1️⃣ Update balances
-        sender.balance -= amount
-        receiver.balance += amount
-
-        # 2️⃣ Log transactions
-        debit_txn = Transaction(
-            account_id=sender.id,
-            type="TRANSFER_DEBIT",
-            amount=amount,
-            status="SUCCESS",
-            reference_id=receiver.id
-        )
-
-        credit_txn = Transaction(
-            account_id=receiver.id,
-            type="TRANSFER_CREDIT",
-            amount=amount,
-            status="SUCCESS",
-            reference_id=sender.id
-        )
-
-        db.add_all([debit_txn, credit_txn])
-        db.commit()
-
-        return {
-            "message": "Transfer successful",
-            "from_account_id": sender.id,
-            "to_account_id": receiver.id,
-            "amount": amount
-        }
-
-    except Exception:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail="Transfer failed, rolled back"
-        )
 
 @app.get("/accounts", response_model=list[AccountResponse])
 def list_accounts(
